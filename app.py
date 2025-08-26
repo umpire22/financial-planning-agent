@@ -13,48 +13,31 @@ st.set_page_config(
 # --- CUSTOM STYLES ---
 st.markdown("""
     <style>
-        /* Dark background */
-        .stApp {
-            background-color: #121212;
-            color: #FFFFFF;
-        }
-        /* Button styling */
-        .stButton>button, .stDownloadButton>button {
-            background-color: #FF6F61;
-            color: white;
-            font-size: 16px;
-            border-radius: 12px;
-            padding: 10px 20px;
-            margin-top: 10px;
-        }
-        h1, h2, h3, h4 {
-            color: #FFD700;
-        }
-        .stMetric-label, .stMetric-value, .stMetric-delta {
-            color: #FFFFFF;
-        }
-        .stDataFrame td, .stDataFrame th {
-            color: #FFFFFF;
-            background-color: #1E1E1E;
-        }
+        .stApp { background-color: #121212; color: #FFFFFF; }
+        .stButton>button, .stDownloadButton>button { background-color: #FF6F61; color: white; font-size: 16px; border-radius: 12px; padding: 10px 20px; margin-top: 10px; }
+        h1, h2, h3, h4 { color: #FFD700; }
+        .stMetric-label, .stMetric-value, .stMetric-delta { color: #FFFFFF; }
+        .stDataFrame td, .stDataFrame th { color: #FFFFFF; background-color: #1E1E1E; }
     </style>
 """, unsafe_allow_html=True)
 
 # --- APP TITLE ---
 st.title("💰 Financial Planning Agent")
-st.markdown("Plan your budget, savings, and financial health with this AI-powered tool in style 🌙")
+st.markdown("Plan your budget, savings, and financial health with this AI-powered tool 🌙")
 
 # --- SIDEBAR ---
 st.sidebar.header("Options")
 mode = st.sidebar.radio("Choose Input Mode:", ["Manual Entry", "Upload CSV"])
+currency = st.sidebar.radio("Select Currency:", ["Dollar ($)", "Naira (₦)"])
+curr_symbol = "$" if currency == "Dollar ($)" else "₦"
 
 # --- MANUAL ENTRY MODE ---
 if mode == "Manual Entry":
     st.subheader("📝 Manual Financial Planning")
 
-    income = st.number_input("Monthly Income ($)", min_value=0, step=100)
-    expenses = st.number_input("Monthly Expenses ($)", min_value=0, step=50)
-    savings_goal = st.number_input("Target Monthly Savings ($)", min_value=0, step=50)
+    income = st.number_input(f"Monthly Income ({curr_symbol})", min_value=0, step=100)
+    expenses = st.number_input(f"Monthly Expenses ({curr_symbol})", min_value=0, step=50)
+    savings_goal = st.number_input(f"Target Monthly Savings ({curr_symbol})", min_value=0, step=50)
 
     if st.button("Analyze My Finances"):
         if income == 0:
@@ -65,15 +48,15 @@ if mode == "Manual Entry":
 
             # Show metrics
             col1, col2, col3 = st.columns(3)
-            col1.metric("💵 Total Income", f"${income}")
-            col2.metric("📉 Total Expenses", f"${expenses}")
-            col3.metric("💰 Current Savings", f"${savings}", delta=f"{savings_percent:.1f}%")
+            col1.metric("💵 Total Income", f"{curr_symbol}{income}")
+            col2.metric("📉 Total Expenses", f"{curr_symbol}{expenses}")
+            col3.metric("💰 Current Savings", f"{curr_symbol}{savings}", delta=f"{savings_percent:.1f}%")
 
             # Progress bar for savings goal
             if savings_goal > 0:
                 progress = min(savings / savings_goal, 1.0)
                 st.progress(progress)
-                st.write(f"Savings Goal Progress: ${savings} / ${savings_goal}")
+                st.write(f"Savings Goal Progress: {curr_symbol}{savings} / {curr_symbol}{savings_goal}")
 
             # Financial advice
             if savings < 0:
@@ -91,7 +74,7 @@ if mode == "Manual Entry":
             st.subheader("📌 Recommended Budget (50/30/20 Rule)")
             budget_df = pd.DataFrame({
                 "Category": ["Needs (50%)", "Wants (30%)", "Savings (20%)"],
-                "Amount ($)": [needs, wants, ideal_savings]
+                "Amount": [f"{curr_symbol}{needs}", f"{curr_symbol}{wants}", f"{curr_symbol}{ideal_savings}"]
             })
             st.dataframe(budget_df, use_container_width=True)
 
@@ -137,9 +120,16 @@ else:
             df["Savings"] = df["Income"] - df["Expenses"]
             df["Financial_Status"] = df.apply(analyze_row, axis=1)
 
+            # Format currency for display
+            df_display = df.copy()
+            df_display["Income"] = df_display["Income"].apply(lambda x: f"{curr_symbol}{x}")
+            df_display["Expenses"] = df_display["Expenses"].apply(lambda x: f"{curr_symbol}{x}")
+            df_display["Savings"] = df_display["Savings"].apply(lambda x: f"{curr_symbol}{x}")
+
             st.subheader("📊 Analysis Results")
-            st.dataframe(df, use_container_width=True)
+            st.dataframe(df_display, use_container_width=True)
 
             # Download results
-            csv = df.to_csv(index=False).encode("utf-8")
+            df_download = df.copy()
+            csv = df_download.to_csv(index=False).encode("utf-8")
             st.download_button("💾 Download Results", data=csv, file_name="financial_analysis.csv")
