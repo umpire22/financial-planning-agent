@@ -1,80 +1,145 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 
+# --- PAGE CONFIG ---
+st.set_page_config(
+    page_title="💰 Financial Planning Agent",
+    page_icon="💰",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# --- CUSTOM STYLES ---
+st.markdown("""
+    <style>
+        /* Dark background */
+        .stApp {
+            background-color: #121212;
+            color: #FFFFFF;
+        }
+        /* Button styling */
+        .stButton>button, .stDownloadButton>button {
+            background-color: #FF6F61;
+            color: white;
+            font-size: 16px;
+            border-radius: 12px;
+            padding: 10px 20px;
+            margin-top: 10px;
+        }
+        h1, h2, h3, h4 {
+            color: #FFD700;
+        }
+        .stMetric-label, .stMetric-value, .stMetric-delta {
+            color: #FFFFFF;
+        }
+        .stDataFrame td, .stDataFrame th {
+            color: #FFFFFF;
+            background-color: #1E1E1E;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- APP TITLE ---
 st.title("💰 Financial Planning Agent")
+st.markdown("Plan your budget, savings, and financial health with this AI-powered tool in style 🌙")
 
-st.write("Plan your budget, savings, and financial health with this AI-inspired tool.")
+# --- SIDEBAR ---
+st.sidebar.header("Options")
+mode = st.sidebar.radio("Choose Input Mode:", ["Manual Entry", "Upload CSV"])
 
-# --- Option 1: Manual Entry ---
-st.subheader("Manual Financial Planning")
+# --- MANUAL ENTRY MODE ---
+if mode == "Manual Entry":
+    st.subheader("📝 Manual Financial Planning")
 
-income = st.number_input("Monthly Income ($)", min_value=0, step=100)
-expenses = st.number_input("Monthly Expenses ($)", min_value=0, step=50)
-savings_goal = st.number_input("Target Monthly Savings ($)", min_value=0, step=50)
+    income = st.number_input("Monthly Income ($)", min_value=0, step=100)
+    expenses = st.number_input("Monthly Expenses ($)", min_value=0, step=50)
+    savings_goal = st.number_input("Target Monthly Savings ($)", min_value=0, step=50)
 
-if st.button("Analyze My Finances"):
-    st.subheader("📊 Financial Health Report")
-
-    if income == 0:
-        st.error("Please enter your income to continue.")
-    else:
-        savings = income - expenses
-        savings_percent = (savings / income) * 100 if income > 0 else 0
-
-        st.write(f"**Total Income:** ${income}")
-        st.write(f"**Total Expenses:** ${expenses}")
-        st.write(f"**Current Savings:** ${savings} ({savings_percent:.1f}%)")
-
-        # Analysis
-        if savings < 0:
-            st.write("⚠️ You are overspending. Try reducing expenses.")
-        elif savings_percent < 10:
-            st.write("⚠️ Savings rate is very low. Aim for at least 20%.")
+    if st.button("Analyze My Finances"):
+        if income == 0:
+            st.error("Please enter your income to continue.")
         else:
-            st.write("✅ Good savings rate! Keep it up.")
+            savings = income - expenses
+            savings_percent = (savings / income) * 100 if income > 0 else 0
 
-        # 50/30/20 Rule Recommendation
-        needs = income * 0.5
-        wants = income * 0.3
-        ideal_savings = income * 0.2
+            # Show metrics
+            col1, col2, col3 = st.columns(3)
+            col1.metric("💵 Total Income", f"${income}")
+            col2.metric("📉 Total Expenses", f"${expenses}")
+            col3.metric("💰 Current Savings", f"${savings}", delta=f"{savings_percent:.1f}%")
 
-        st.subheader("📌 Recommended Budget (50/30/20 Rule)")
-        st.write(f"Needs (50%): ${needs}")
-        st.write(f"Wants (30%): ${wants}")
-        st.write(f"Savings (20%): ${ideal_savings}")
+            # Progress bar for savings goal
+            if savings_goal > 0:
+                progress = min(savings / savings_goal, 1.0)
+                st.progress(progress)
+                st.write(f"Savings Goal Progress: ${savings} / ${savings_goal}")
 
-        if savings_goal > 0:
-            if savings >= savings_goal:
-                st.success(f"🎯 You are on track to meet your savings goal of ${savings_goal} per month!")
+            # Financial advice
+            if savings < 0:
+                st.warning("⚠️ You are overspending. Try reducing expenses.")
+            elif savings_percent < 10:
+                st.warning("⚠️ Savings rate is very low. Aim for at least 20%.")
             else:
-                st.warning(f"⚠️ You need to save an extra ${savings_goal - savings} to reach your goal.")
+                st.success("✅ Good savings rate! Keep it up.")
 
-# --- Option 2: Upload CSV ---
-st.subheader("Batch Financial Analysis (Upload CSV)")
-uploaded_file = st.file_uploader("Upload financial data (CSV)", type=["csv"])
+            # 50/30/20 Rule
+            needs = income * 0.5
+            wants = income * 0.3
+            ideal_savings = income * 0.2
 
-if uploaded_file:
-    df = pd.read_csv(uploaded_file)
+            st.subheader("📌 Recommended Budget (50/30/20 Rule)")
+            budget_df = pd.DataFrame({
+                "Category": ["Needs (50%)", "Wants (30%)", "Savings (20%)"],
+                "Amount ($)": [needs, wants, ideal_savings]
+            })
+            st.dataframe(budget_df, use_container_width=True)
 
-    st.write("📄 Uploaded Data")
-    st.dataframe(df.head())
+            # Pie chart
+            fig, ax = plt.subplots()
+            ax.pie([needs, wants, ideal_savings],
+                   labels=["Needs", "Wants", "Savings"],
+                   autopct='%1.1f%%',
+                   colors=["#3498DB", "#F1C40F", "#2ECC71"])
+            st.pyplot(fig)
 
-    def analyze_row(row):
-        savings = row["Income"] - row["Expenses"]
-        if savings < 0:
-            return "Overspending"
-        elif (savings / row["Income"]) * 100 < 10:
-            return "Low Savings"
-        elif (savings / row["Income"]) * 100 >= 20:
-            return "Healthy Savings"
+# --- CSV UPLOAD MODE ---
+else:
+    st.subheader("📂 Batch Financial Analysis (Upload CSV)")
+    uploaded_file = st.file_uploader("Upload financial data (CSV)", type=["csv"])
+
+    if uploaded_file:
+        df = pd.read_csv(uploaded_file)
+
+        # Validate CSV
+        required_cols = ["Income", "Expenses"]
+        if not all(col in df.columns for col in required_cols):
+            st.error(f"CSV must contain columns: {required_cols}")
         else:
-            return "Moderate Savings"
+            st.write("📄 Uploaded Data")
+            st.dataframe(df.head(), use_container_width=True)
 
-    df["Financial_Status"] = df.apply(analyze_row, axis=1)
+            # Analysis function
+            def analyze_row(row):
+                if row["Income"] == 0:
+                    return "No Income Provided"
+                savings = row["Income"] - row["Expenses"]
+                percent = (savings / row["Income"]) * 100
+                if savings < 0:
+                    return "Overspending"
+                elif percent < 10:
+                    return "Low Savings"
+                elif percent >= 20:
+                    return "Healthy Savings"
+                else:
+                    return "Moderate Savings"
 
-    st.subheader("📊 Analysis Results")
-    st.dataframe(df)
+            df["Savings"] = df["Income"] - df["Expenses"]
+            df["Financial_Status"] = df.apply(analyze_row, axis=1)
 
-    # Download option
-    csv = df.to_csv(index=False).encode("utf-8")
-    st.download_button("Download Results", data=csv, file_name="financial_analysis.csv")
+            st.subheader("📊 Analysis Results")
+            st.dataframe(df, use_container_width=True)
+
+            # Download results
+            csv = df.to_csv(index=False).encode("utf-8")
+            st.download_button("💾 Download Results", data=csv, file_name="financial_analysis.csv")
